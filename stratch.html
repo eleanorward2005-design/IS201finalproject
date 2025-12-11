@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stratch Page</title>
+    <link rel="stylesheet" href="css/mystlyesstratch.css">
+</head>
+<h3 class="top-right">
+    <a href="index.html">Home</a> | <a href="game.html">Game</a>
+</h3>
+<h1>Flowers Growing</h1>
+
+<body>
+    <div style="text-align: center;">
+    <iframe width="1120" height="630" src="https://www.youtube.com/embed/LjCzPp-MK48?si=BuN2Dgc39qePkxWd"
+        title="YouTube video player" frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        <div>
+    <div class='tableauPlaceholder' id='viz1765390612364' style='position: relative'><noscript><a href='#'><img
+                    alt='Iris Flower '
+                    src='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;Ir&#47;IrisFlower_16672744829480&#47;IrisFlower&#47;1_rss.png'
+                    style='border: none' /></a></noscript><object class='tableauViz' style='display:none;'>
+            <param name='host_url' value='https%3A%2F%2Fpublic.tableau.com%2F' />
+            <param name='embed_code_version' value='3' />
+            <param name='site_root' value='' />
+            <param name='name' value='IrisFlower_16672744829480&#47;IrisFlower' />
+            <param name='tabs' value='no' />
+            <param name='toolbar' value='yes' />
+            <param name='static_image'
+                value='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;Ir&#47;IrisFlower_16672744829480&#47;IrisFlower&#47;1.png' />
+            <param name='animate_transition' value='yes' />
+            <param name='display_static_image' value='yes' />
+            <param name='display_spinner' value='yes' />
+            <param name='display_overlay' value='yes' />
+            <param name='display_count' value='yes' />
+            <param name='language' value='en-US' />
+        </object></div>
+    <script
+        type='text/javascript'>                    var divElement = document.getElementById('viz1765390612364'); var vizElement = divElement.getElementsByTagName('object')[0]; vizElement.style.width = '1500px'; vizElement.style.height = '1227px'; var scriptElement = document.createElement('script'); scriptElement.src = 'https://public.tableau.com/javascripts/api/viz_v1.js'; vizElement.parentNode.insertBefore(scriptElement, vizElement);                </script>
+<!-- This block contains the resume structure and its interactive JavaScript -->
+<div style="text-align: left; max-width: 600px; margin: 20px auto; padding: 15px; border: 1px solid #ccc; border-radius: 8px;">
+    <!-- Header Section -->
+    <header>
+        <h1>Eleanor Ward</h1>
+    </header>
+
+    <hr>
+    
+    <!-- Skills Section -->
+    <div>
+        <h2>Skills</h2>
+        <p>HTML & CSS, SQL, Tableau, Problem-Solving, Leadership</p>
+    </div>
+
+    <hr>
+
+    <!-- Main Resume Content Section -->
+    <section>
+
+        <!-- Education Section -->
+        <div>
+            <h2 id="education-title" style="cursor: pointer;">Education [+]</h2>
+            <div id="education-content" class="content-section">
+                <h3>BYU</h3>
+                <p>Expected Graduation: April 2028</p>
+                <ul>
+                    <li>Junior</li>
+                    <li>Full tuition scholarship.</li>
+                </ul>
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- Experience Section -->
+        <div>
+            <h2 id="experience-title" style="cursor: pointer;">Experience [+]</h2>
+            <div id="experience-content" class="content-section" style="display: none;">
+                
+                <div>
+                    <h3>BYU MOA Giftshop</h3>
+                    <p>BYU | 20204 - Present</p>
+                    <ul>
+                        <li>Help customers check out items.</li>
+                        <li>Straigthen and resupply shop.</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>Bear Lake Fun</h3>
+                    <p>Bear Lake | Summer 2025</p>
+                    <ul>
+                        <li>Helped customers rent boats and communicate safety regulations.</li>
+                        <li>Clean and restore equipment.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    </section>
+
+    <hr>
+    
+    <footer>
+        <p style="font-style: italic; font-size: small;">Click the section titles to expand the details!</p>
+    </footer>
+</div>
+    
+<script>
+    // JavaScript for Interactive Toggling
+    document.addEventListener('DOMContentLoaded', () => {
+        const sections = [
+            { title: 'education-title', content: 'education-content' },
+            { title: 'experience-title', content: 'experience-content' } 
+        ];
+
+        // Helper function to toggle the content display and the [+] symbol
+        function toggleSection(titleElement, contentElement) {
+            // Check if the element is currently hidden
+            const isHidden = contentElement.style.display === 'none' || contentElement.style.display === '';
+            
+            if (isHidden) {
+                contentElement.style.display = 'block';
+                // Change [+] to [-] when opening
+                titleElement.textContent = titleElement.textContent.replace('[+]', '[-]');
+            } else {
+                contentElement.style.display = 'none';
+                // Change [-] to [+] when closing
+                titleElement.textContent = titleElement.textContent.replace('[-]', '[+]');
+            }
+        }
+
+        sections.forEach(sec => {
+            const titleElement = document.getElementById(sec.title);
+            const contentElement = document.getElementById(sec.content);
+
+            // Initialize: Education is open, others are closed
+            if (sec.title === 'education-title') {
+                contentElement.style.display = 'block';
+                // Ensure the symbol is set to [-] when open
+                if (titleElement.textContent.includes('[+]')) {
+                   titleElement.textContent = titleElement.textContent.replace('[+]', '[-]');
+                }
+            } else {
+                contentElement.style.display = 'none';
+            }
+
+            // Attach the click event listener
+            if (titleElement) {
+                titleElement.addEventListener('click', () => {
+                    toggleSection(titleElement, contentElement);
+                });
+            }
+        });
+    });
+</script>
+</body>
+</html>
+</body>
+
+</html>

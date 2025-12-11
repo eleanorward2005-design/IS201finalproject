@@ -1,0 +1,66 @@
+img{
+    <img src = "assets/img/intro.jpg" alt="..." height="220px"/>
+}
+.background-color{
+    background-color: rgb(255, 228, 196);
+}
+.footer{
+    background-color: rgba(250, 192, 247, 0.585);
+    font-style: italic;
+}
+ol{
+    text-align: left;
+}
+.h1{
+    font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif
+}
+sectionclass{
+    background-color: rgba(250, 192, 247, 0.585);
+}
+body, h1, h2, h3, h4, h5, h6, p, div, span, a{
+    font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+}
+:root {
+    /* 1. New Primary Color (affects the .btn-primary button) */
+    --bs-primary: #f6f9bb; /* Vibrant Teal *
+
+    /* Optional: Also update the link color to match the new button color */
+    --bs-link-color: #f17ff596;
+    --bs-link-hover-color: #df7ff293; 
+}
+.btn-primary {
+    background-color: var(--bs-primary) !important;
+    border-color: var(--bs-primary) !important;
+}
+
+/* Assuming the banner has a class like .banner-footer or .footer */
+.banner-footer {
+    background-color: var(--bs-secondary) !important;
+}
+:root {
+    --bs-secondary: #e7cfec; 
+    --bs-secondary-rgb: 100, 0, 168; 
+}
+
+/* Forcefully apply the new color to the specific banner classes */
+.cta-inner, .bg-faded {
+    background-color: var(--bs-secondary) !important;
+    color: white !important; /* Makes the text easy to read on the dark background */
+    color: #3a323c !important; /* NEW: Soft, off-white color for the text */
+}
+
+/* Fix the yellow border: Target the outer section wrapper (class="cta") 
+   and make its background transparent to stop the old yellow color from showing 
+   around the inner banner. */
+.cta {
+    background-color:#f9bbf594 !important;
+}
+
+/* NEW RULE: Change the color of the "Eleanor Ward" text at the top, 
+   which uses the site-heading-upper class. */
+.site-heading-upper {
+    color: #FFC0CB !important; /* Set to Bright Pink to match the banner text */
+}
+#mainNav {
+    background-color: rgba(245, 149, 228, 0.576) !important;
+}

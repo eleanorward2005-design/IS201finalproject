@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Petal Point Garden</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the game board */
+        .game-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; 
+            padding: 1rem;
+            background-color: #f0fdf4; /* Light Minty Background */
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Canvas for the Garden */
+        #gameCanvas {
+            border: 4px solid #34d399; /* Mint green border */
+            background-color: #92400e; /* Richer soil color */
+            touch-action: manipulation; 
+            cursor: pointer;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Canvas for the Bouquet */
+        #bouquetCanvas {
+            border: 2px solid #2dd4bf; 
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .hud-card {
+            background-color: #ffffff;
+            border: 2px solid #a7f3d0; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Button styles */
+        .plant-button, #sellBouquetButton {
+            transition: all 0.2s;
+        }
+        .plant-button:hover, #sellBouquetButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        }
+        .plant-button:disabled, #sellBouquetButton:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .bouquet-card {
+            background-color: #ecfeff; 
+            border: 2px solid #2dd4bf; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app" class="game-container w-full max-w-lg mx-auto">
+        <h1 class="text-3xl font-bold text-teal-600 mb-4 mt-2">Petal Point Garden</h1>
+
+        <!-- HUD Section -->
+        <div class="w-full flex justify-between items-center mb-4 p-4 rounded-xl hud-card">
+            <div class="text-lg font-semibold text-gray-700">
+                Score: <span id="scoreDisplay" class="text-teal-600">0</span>
+            </div>
+            <div class="text-lg font-semibold text-gray-700">
+                Money: <span id="moneyDisplay" class="text-yellow-600">$50</span>
+            </div>
+        </div>
+
+        <!-- Bouquet Section (Updated for Visual Canvas) -->
+        <div class="w-full mb-4 p-4 rounded-xl bouquet-card flex flex-col md:flex-row items-center justify-between">
+            
+            <!-- Bouquet Visualization Canvas -->
+            <div class="flex-shrink-0 mb-4 md:mb-0 md:mr-4">
+                <canvas id="bouquetCanvas" width="120" height="150"></canvas>
+            </div>
+
+            <div class="flex-grow flex flex-col items-center md:items-start space-y-2">
+                <div class="text-xl font-bold text-gray-800">
+                    Your Bouquet
+                </div>
+                <div class="text-lg font-semibold text-gray-800">
+                    Total Value: <span id="bouquetValueDisplay" class="text-red-500 ml-1 font-extrabold">0</span>
+                </div>
+                <button id="sellBouquetButton" class="py-2 px-4 w-full md:w-auto rounded-lg font-bold shadow-md bg-pink-500 text-white hover:bg-pink-600 disabled:bg-gray-400">
+                    Sell Bouquet!
+                </button>
+            </div>
+        </div>
+
+        <!-- Canvas for the Garden -->
+        <canvas id="gameCanvas" width="380" height="380" class="w-full max-w-sm rounded-xl"></canvas>
+
+        <!-- Control Panel -->
+        <div class="w-full mt-4 p-4 rounded-xl hud-card">
+            <h2 class="text-xl font-semibold mb-3 text-gray-800">Choose a Seed:</h2>
+            <div id="seedButtons" class="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:justify-center">
+                <!-- Buttons will be populated by JavaScript -->
+            </div>
+            <p class="mt-3 text-sm text-center text-gray-500">
+                Tap an empty spot in the garden to plant the selected seed, or tap a fully grown flower to harvest.
+            </p>
+        </div>
+        
+        <!-- Message Box -->
+        <div id="messageBox" class="fixed top-0 left-0 right-0 p-3 bg-green-500 text-white text-center font-bold transition-all duration-300 transform -translate-y-full opacity-0">
+            Message
+        </div>
+    </div>
+
+    <script>
+        // Game Constants and Initialization
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const bouquetCanvas = document.getElementById('bouquetCanvas');
+        const btx = bouquetCanvas.getContext('2d');
+        
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const moneyDisplay = document.getElementById('moneyDisplay');
+        const bouquetValueDisplay = document.getElementById('bouquetValueDisplay');
+        const sellBouquetButton = document.getElementById('sellBouquetButton');
+        const seedButtonsContainer = document.getElementById('seedButtons');
+        const messageBox = document.getElementById('messageBox');
+
+        // Game State
+        let score = 0;
+        let money = 50;
+        let bouquetInventory = []; // Tracks harvested flower types
+        let selectedSeed = null;
+        let flowers = [];
+        let animationFrameId = null; // Used to stop the game loop on win
+
+        // Grid setup (for simple planting spots)
+        const GRID_SIZE = 4;
+        const CELL_PADDING = 20; // Padding from canvas edge
+        const GRID_SPACING_X = (canvas.width - 2 * CELL_PADDING) / (GRID_SIZE - 1);
+        const GRID_SPACING_Y = (canvas.height - 2 * CELL_PADDING) / (GRID_SIZE - 1);
+
+        // Flower Definitions (Growth time increased by 3s, Value updated to be proportional)
+        const FLOWERS = {
+            SUNFLOWER: {
+                name: "Sunflower",
+                cost: 10,
+                value: 90, // Updated: Proportional to new 18s growth time
+                growthTime: 18, // Updated: 15 + 3 = 18 seconds
+                color: '#fcd34d', // Bright Yellow
+                stemColor: '#4d7c0f', // Green
+                maxSize: 1.5,
+                shape: 'circle'
+            },
+            ROSE: {
+                name: "Rose",
+                cost: 25,
+                value: 140, // Updated: Proportional to new 28s growth time
+                growthTime: 28, // Updated: 25 + 3 = 28 seconds
+                color: '#ef4444', // Red
+                stemColor: '#16a34a', // Darker Green
+                maxSize: 1.0,
+                shape: 'petal'
+            },
+            LILY: {
+                name: "Lily",
+                cost: 5,
+                value: 65, // Updated: Proportional to new 13s growth time
+                growthTime: 13, // Updated: 10 + 3 = 13 seconds
+                color: '#fef3c7', // Creamy White
+                stemColor: '#84cc16', // Light Green
+                maxSize: 1.2,
+                shape: 'triangle'
+            },
+            TULIP: {
+                name: "Tulip",
+                cost: 15,
+                value: 75, // Updated: Proportional to new 15s growth time
+                growthTime: 15, // Updated: 12 + 3 = 15 seconds
+                color: '#f97316', // Vibrant Orange
+                stemColor: '#4d7c0f',
+                maxSize: 1.3,
+                shape: 'cup' // New shape: closed cup
+            },
+            ORCHID: {
+                name: "Orchid",
+                cost: 50,
+                value: 120, 
+                growthTime: 9, // **UPDATED: Changed from 10 to 9 seconds**
+                color: '#e879f9', // Bright Pink/Magenta
+                stemColor: '#84cc16',
+                maxSize: 1.0, // **UPDATED: Changed from 0.9 to 1.0 to ensure it is pickable**
+                shape: 'flare' // New shape: complex flare
+            }
+        };
+        
+        // Game Goals
+        const WIN_GOAL = 1500;
+
+        /**
+         * Utility function to adjust hex color luminosity (for gradients).
+         */
+        function adjustColor(hex, lum) {
+            hex = String(hex).replace(/[^0-9a-f]/gi, '');
+            if (hex.length < 6) {
+                hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+            }
+            lum = lum || 0;
+            let rgb = "#", c, i;
+            for (i = 0; i < 3; i++) {
+                c = parseInt(hex.substr(i*2,2), 16);
+                c = Math.round(Math.min(255, Math.max(0, c + lum))).toString(16);
+                while (c.length < 2) c = "0"+c;
+                rgb += c;
+            }
+            return rgb;
+        }
+
+        // Utility Functions
+        
+        /**
+         * Converts a grid coordinate (0-3) to a canvas pixel position.
+         */
+        function gridToPixel(index, dimension, spacing) {
+            return CELL_PADDING + index * spacing;
+        }
+
+        /**
+         * Converts a canvas pixel position to the nearest grid coordinate (0-3).
+         */
+        function pixelToGrid(pixel, spacing) {
+            // This part is fine, it maps the click position to a grid cell
+            const index = Math.round((pixel - CELL_PADDING) / spacing);
+            if (index >= 0 && index < GRID_SIZE) {
+                return index;
+            }
+            return -1;
+        }
+
+        /**
+         * Finds a flower at the given grid coordinates.
+         */
+        function getFlowerAtGrid(gx, gy) {
+            return flowers.find(f => f.gx === gx && f.gy === gy);
+        }
+
+        /**
+         * Displays a temporary message in the HUD.
+         */
+        function showMessage(message, type = 'info') {
+            messageBox.textContent = message;
+            let colorClass = 'bg-gray-500';
+            if (type === 'success') colorClass = 'bg-green-600';
+            if (type === 'error') colorClass = 'bg-red-600';
+            if (type === 'info') colorClass = 'bg-blue-600';
+
+            messageBox.className = `fixed top-0 left-0 right-0 p-3 text-white text-center font-bold transition-all duration-300 transform translate-y-0 opacity-100 ${colorClass}`;
+
+            // Hide after 3 seconds
+            setTimeout(() => {
+                messageBox.className = `fixed top-0 left-0 right-0 p-3 bg-gray-500 text-white text-center font-bold transition-all duration-300 transform -translate-y-full opacity-0`;
+            }, 3000);
+        }
+
+        // Game Logic
+
+        function updateScore(amount) {
+            score += amount;
+            scoreDisplay.textContent = score;
+        }
+
+        function updateMoney(amount) {
+            money += amount;
+            moneyDisplay.textContent = `$${money}`;
+            updateSeedButtons();
+        }
+        
+        /**
+         * Renders a single flower head on a given context (used for both garden and bouquet).
+         */
+        function drawSingleFlowerHead(drawCtx, flowerType, x, y, size) {
+            const def = FLOWERS[flowerType];
+            const headRadius = size * 0.4;
+            const petalRadius = size * 0.2;
+            const centerRadius = size * 0.15;
+            
+            drawCtx.save();
+            drawCtx.translate(x, y);
+
+            // Create a radial gradient for depth and complexity
+            const gradient = drawCtx.createRadialGradient(0, 0, centerRadius * 0.5, 0, 0, headRadius);
+            gradient.addColorStop(0, adjustColor(def.color, 20)); // Lighter center
+            gradient.addColorStop(0.5, def.color);
+            gradient.addColorStop(1, adjustColor(def.color, -30)); // Darker edge for depth
+
+            drawCtx.fillStyle = gradient;
+
+            // Petals based on shape (simplified for the bouquet)
+            if (def.shape === 'circle') {
+                for (let i = 0; i < 6; i++) {
+                    drawCtx.beginPath();
+                    drawCtx.arc(0, 0, headRadius, i * Math.PI / 3, (i + 1) * Math.PI / 3);
+                    drawCtx.lineTo(0, 0);
+                    drawCtx.closePath();
+                    drawCtx.fill();
+                }
+            } else if (def.shape === 'petal') {
+                for (let i = 0; i < 8; i++) {
+                    drawCtx.save();
+                    drawCtx.rotate(i * Math.PI / 4);
+                    drawCtx.beginPath();
+                    drawCtx.moveTo(0, 0);
+                    drawCtx.bezierCurveTo(petalRadius * 1.5, -petalRadius / 2, headRadius, -petalRadius/4, headRadius, 0);
+                    drawCtx.bezierCurveTo(headRadius, petalRadius/4, petalRadius * 1.5, petalRadius / 2, 0, 0);
+                    drawCtx.closePath();
+                    drawCtx.fill();
+                    drawCtx.restore();
+                }
+
+            } else if (def.shape === 'triangle') {
+                for (let i = 0; i < 4; i++) {
+                    drawCtx.save();
+                    drawCtx.rotate(i * Math.PI / 2);
+                    drawCtx.beginPath();
+                    drawCtx.moveTo(0, 0);
+                    drawCtx.lineTo(petalRadius, -petalRadius);
+                    drawCtx.lineTo(headRadius * 1.2, 0);
+                    drawCtx.lineTo(petalRadius, petalRadius);
+                    drawCtx.closePath();
+                    drawCtx.fill();
+                    drawCtx.restore();
+                }
+            } else if (def.shape === 'cup') {
+                const width = headRadius * 1.5;
+                const height = headRadius * 1.8;
+                drawCtx.beginPath();
+                drawCtx.moveTo(-width / 3, 0);
+                drawCtx.lineTo(width / 3, 0);
+                drawCtx.lineTo(width / 4, -height);
+                drawCtx.lineTo(0, -height * 0.8);
+                drawCtx.lineTo(-width / 4, -height);
+                drawCtx.closePath();
+                drawCtx.fill();
+            } else if (def.shape === 'flare') {
+                const primaryPetal = headRadius * 1.3;
+                const secondaryPetal = headRadius * 0.7;
+                
+                drawCtx.beginPath();
+                drawCtx.arc(0, 0, secondaryPetal * 0.6, 0, Math.PI * 2);
+                drawCtx.fill();
+
+                drawCtx.beginPath();
+                drawCtx.ellipse(0, -primaryPetal/2, primaryPetal/3, primaryPetal, 0, 0, 2 * Math.PI);
+                drawCtx.fill();
+                
+                drawCtx.beginPath();
+                drawCtx.ellipse(0, 0, primaryPetal/2, primaryPetal/4, Math.PI / 2, 0, 2 * Math.PI);
+                drawCtx.fill();
+            }
+            
+            // Center of the flower (always dark)
+            drawCtx.beginPath();
+            drawCtx.fillStyle = '#65a30d'; // Dark center
+            drawCtx.arc(0, 0, centerRadius, 0, Math.PI * 2);
+            drawCtx.fill();
+            
+            drawCtx.restore();
+        }
+
+        /**
+         * Renders the visual bouquet on the dedicated canvas.
+         */
+        function drawBouquetCanvas() {
+            const width = bouquetCanvas.width;
+            const height = bouquetCanvas.height;
+            btx.clearRect(0, 0, width, height);
+            
+            const totalValue = bouquetInventory.reduce((sum, type) => sum + FLOWERS[type].value, 0);
+            bouquetValueDisplay.textContent = totalValue;
+            sellBouquetButton.disabled = totalValue === 0;
+            sellBouquetButton.textContent = totalValue > 0 ? `Sell Bouquet! ($${totalValue})` : 'Sell Bouquet!';
+
+            const count = bouquetInventory.length;
+
+            if (count === 0) {
+                btx.fillStyle = '#e5e7eb';
+                btx.font = '10px Inter';
+                btx.textAlign = 'center';
+                btx.fillText("Empty Bouquet", width / 2, height / 2);
+                return;
+            }
+
+            // --- 1. Define Arrangement Parameters ---
+            const vaseHeight = 45; 
+            const vaseBottomY = height - 5;
+            const vaseTopY = vaseBottomY - vaseHeight; 
+            const headClusterY = 40; 
+            const maxSpread = width * 0.45; 
+            const flowerSize = 25; 
+            const stemCenterX = width / 2;
+            
+            const stemEndpoints = [];
+            
+            // --- 2. Draw Stems (Fanned out with a curve) ---
+            
+            bouquetInventory.forEach((type, index) => {
+                
+                // Calculate position along the fan/arc
+                const t = count > 1 ? index / (count - 1) : 0.5; // Normalized position (0 to 1)
+                const offset = t - 0.5; // Ranged from -0.5 to 0.5
+                
+                // Stem End X position: spread out significantly
+                const stemEndX = stemCenterX + offset * maxSpread * 0.9; 
+                
+                // Stem End Y position: highest in the middle, lowest at the ends (creates the arc basis)
+                const arcFactor = 1 - Math.abs(offset) * 2; // Ranged from 0 (ends) to 1 (middle)
+                // Use vaseTopY as the reference point for the stem bundle
+                const stemEndY = vaseTopY - 10 - (vaseTopY - headClusterY) * 0.5 * arcFactor; 
+
+                stemEndpoints.push({ x: stemEndX, y: stemEndY }); 
+
+                btx.beginPath();
+                btx.strokeStyle = FLOWERS[type].stemColor;
+                btx.lineWidth = 3; 
+                btx.lineCap = 'round';
+                
+                // Draw a quadratic curve for a nice, organic stem look
+                btx.moveTo(stemCenterX, vaseTopY); // Start point (top of the vase)
+                btx.quadraticCurveTo(
+                    stemCenterX + offset * maxSpread * 0.1, vaseTopY + 10, // Control point low down
+                    stemEndX, stemEndY // End point (where flower head sits)
+                );
+                btx.stroke();
+            });
+
+            // --- 3. Draw Vase (Skinnier, Decorative Pink, Rounded Bottom) ---
+            btx.save();
+            
+            // **UPDATED: Smaller width parameters for a skinnier vase**
+            const vaseWidthNeck = width * 0.10; 
+            const vaseWidthBulb = width * 0.15;
+            const vaseColor = '#f472b6'; // Pink color (Tailwind pink-500)
+
+            // 3a. Vase Body (Decorative, Rounded Bottom)
+            btx.beginPath();
+            
+            // 1. Start at top left neck
+            btx.moveTo(stemCenterX - vaseWidthNeck / 2, vaseTopY); 
+            
+            // 2. Left side curve (out and down to create a bulbous shape)
+            btx.quadraticCurveTo(
+                stemCenterX - vaseWidthBulb / 2, vaseTopY + vaseHeight * 0.3, // Control point for bulb
+                stemCenterX - vaseWidthBulb / 2, vaseBottomY - 15 // End of left side taper
+            ); 
+
+            // 3. Rounded Bottom Curve (connecting left and right sides)
+            btx.quadraticCurveTo(
+                stemCenterX - vaseWidthBulb / 4, vaseBottomY, // Control point for left roundness
+                stemCenterX, vaseBottomY // Center bottom point
+            );
+            
+            // 4. Right side of rounded bottom
+            btx.quadraticCurveTo(
+                stemCenterX + vaseWidthBulb / 4, vaseBottomY, // Control point for right roundness
+                stemCenterX + vaseWidthBulb / 2, vaseBottomY - 15 // Start of right side taper
+            );
+
+            // 5. Right side curve (up and in to neck)
+            btx.quadraticCurveTo(
+                stemCenterX + vaseWidthBulb / 2, vaseTopY + vaseHeight * 0.3, // Control point for bulb
+                stemCenterX + vaseWidthNeck / 2, vaseTopY // End at top right neck
+            ); 
+            
+            btx.closePath();
+            
+            // Add gradient and fill
+            const vaseGradient = btx.createLinearGradient(stemCenterX - vaseWidthBulb/2, vaseTopY, stemCenterX + vaseWidthBulb/2, vaseTopY);
+            vaseGradient.addColorStop(0, adjustColor(vaseColor, -30)); 
+            vaseGradient.addColorStop(0.5, vaseColor);
+            vaseGradient.addColorStop(1, adjustColor(vaseColor, -50)); 
+            btx.fillStyle = vaseGradient;
+            btx.fill();
+            btx.strokeStyle = adjustColor(vaseColor, -60);
+            btx.lineWidth = 2;
+            btx.stroke();
+
+
+            // 3b. Vase Rim (simple ellipse at the top)
+            btx.beginPath();
+            btx.ellipse(stemCenterX, vaseTopY, vaseWidthNeck / 2 + 1, 3, 0, 0, 2 * Math.PI); // Smaller rim height
+            btx.fillStyle = adjustColor(vaseColor, 30); 
+            btx.fill();
+            btx.strokeStyle = adjustColor(vaseColor, -60);
+            btx.stroke();
+            
+            // **REMOVED: Ribbon drawing section (3c)**
+            
+            btx.restore();
+
+
+            // --- 4. Draw Flower Heads (arranged in a clear arc/fan) ---
+            // Draw in reverse order for layering
+            for (let i = count - 1; i >= 0; i--) {
+                const type = bouquetInventory[i];
+                const stemEnd = stemEndpoints[i]; // This is the exact endpoint of the stem
+
+                // Use the calculated stem endpoint (x, y) as the center for the flower head
+                drawSingleFlowerHead(btx, type, stemEnd.x, stemEnd.y, flowerSize); 
+            }
+        }
+        
+
+        // UPDATED: Function to add a flower to the bouquet and update UI
+        function collectFlower(flowerType) {
+            bouquetInventory.push(flowerType);
+            drawBouquetCanvas(); // Draw the visual bouquet immediately
+        }
+
+        // UPDATED: Sell the accumulated bouquet and check for win condition
+        function sellBouquet() {
+            const totalValue = bouquetInventory.reduce((sum, type) => sum + FLOWERS[type].value, 0);
+
+            if (totalValue > 0) {
+                updateScore(totalValue);
+                updateMoney(totalValue);
+                
+                // Check for win condition after updating money
+                if (money >= WIN_GOAL) {
+                    showMessage(`VICTORY! You reached $${WIN_GOAL} and won the game!`, 'success');
+                    // Stop the game loop
+                    cancelAnimationFrame(animationFrameId);
+                } else {
+                    showMessage(`Sold bouquet for $${totalValue} and ${totalValue} Points!`, 'success');
+                }
+                
+                bouquetInventory = []; // Reset inventory
+                drawBouquetCanvas(); // Update display (resets visual bouquet)
+            } else {
+                showMessage("Your bouquet is empty! Plant and harvest some flowers first.", 'info');
+            }
+        }
+
+        /**
+         * Draw the flower based on its type, growth stage, and position (used for Garden Canvas).
+         */
+        function drawFlower(flower) {
+            const x = flower.x;
+            const y = flower.y;
+            const size = 10 + (25 * flower.growth); // Base size + growth scale
+            const def = FLOWERS[flower.type];
+
+            ctx.save();
+            ctx.translate(x, y);
+
+            // 1. Stem (always draw)
+            ctx.beginPath();
+            ctx.strokeStyle = def.stemColor;
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.moveTo(0, 0); 
+            ctx.lineTo(0, size); 
+            ctx.stroke();
+
+            // 1.5. Leaves (draw regardless of full maturity, but scale with growth)
+            const leafColor = def.stemColor;
+            ctx.fillStyle = leafColor;
+
+            // Leaf 1 (Left side, slightly curved)
+            ctx.beginPath();
+            ctx.moveTo(0, size * 0.4);
+            ctx.bezierCurveTo(-size * 0.4 * flower.growth, size * 0.3, -size * 0.2, size * 0.8, 0, size * 0.7);
+            ctx.closePath();
+            ctx.fill();
+
+            // Leaf 2 (Right side, slightly curved)
+            ctx.beginPath();
+            ctx.moveTo(0, size * 0.6);
+            ctx.bezierCurveTo(size * 0.3 * flower.growth, size * 0.5, size * 0.1, size * 0.9, 0, size * 0.9);
+            ctx.closePath();
+            ctx.fill();
+
+            // 2. Flower Head (uses the reusable function)
+            if (flower.growth > 0) {
+                 // Use the main context, draw at 0, 0, with dynamic size
+                drawSingleFlowerHead(ctx, flower.type, 0, 0, size * 0.8);
+            }
+            
+            ctx.restore();
+
+            // Draw a status circle if ready to harvest
+            if (flower.growth >= 1) {
+                ctx.beginPath();
+                ctx.fillStyle = '#10b981'; // Ready green
+                ctx.arc(x + 20, y - 20, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        /**
+         * Main game drawing loop.
+         */
+        function draw() {
+            // Clear the canvas area
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw the grid spots (optional visual aid)
+            ctx.strokeStyle = '#a8a29e'; 
+            ctx.lineWidth = 1;
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    const x = gridToPixel(i, canvas.width, GRID_SPACING_X);
+                    const y = gridToPixel(j, canvas.height, GRID_SPACING_Y);
+
+                    // Draw a small dot or circle to show the plantable spot
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, Math.PI * 2);
+                    ctx.fillStyle = '#a8a29e';
+                    ctx.fill();
+                }
+            }
+
+            // Draw all flowers
+            flowers.forEach(drawFlower);
+        }
+
+        let lastTime = 0;
+        /**
+         * Updates the game state (growth).
+         */
+        function update(currentTime) {
+            if (!lastTime) lastTime = currentTime;
+            const deltaTime = (currentTime - lastTime) / 1000; // Time elapsed in seconds
+            lastTime = currentTime;
+
+            flowers.forEach(flower => {
+                const def = FLOWERS[flower.type];
+                const targetGrowthVisual = def.maxSize;
+                
+                const growthRate = targetGrowthVisual / def.growthTime;
+                
+                if (flower.growth < targetGrowthVisual) {
+                    flower.growth += growthRate * deltaTime;
+                    if (flower.growth > targetGrowthVisual) {
+                        flower.growth = targetGrowthVisual;
+                    }
+                }
+            });
+        }
+
+        /**
+         * Game loop combining update and draw.
+         */
+        function gameLoop(currentTime) {
+            update(currentTime);
+            draw();
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        /**
+         * Handles user click/tap on the canvas.
+         */
+        function handleCanvasClick(event) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+
+            // Robustly get coordinates for mouse (click) or touch (touchend)
+            if (event.changedTouches && event.changedTouches.length > 0) {
+                // Touch end event: use changedTouches for final position
+                clientX = event.changedTouches[0].clientX;
+                clientY = event.changedTouches[0].clientY;
+            } else if (event.clientX !== undefined) {
+                // Mouse click event
+                clientX = event.clientX;
+                clientY = event.clientY;
+            } else {
+                return;
+            }
+
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            const gx = pixelToGrid(x, GRID_SPACING_X);
+            const gy = pixelToGrid(y, GRID_SPACING_Y);
+
+            if (gx === -1 || gy === -1) {
+                showMessage("Tap within the soil area to interact.", 'info');
+                return;
+            }
+
+            const existingFlower = getFlowerAtGrid(gx, gy);
+            const HARVEST_THRESHOLD = 1.0; 
+
+            if (existingFlower) {
+                // Harvest action
+                if (existingFlower.growth >= HARVEST_THRESHOLD) {
+                    const def = FLOWERS[existingFlower.type];
+                    const flowerValue = def.value;
+
+                    // Collect the flower and add it to the inventory
+                    collectFlower(existingFlower.type);
+                    flowers = flowers.filter(f => f !== existingFlower); 
+                    showMessage(`Harvested a ${def.name}! Added to bouquet.`, 'success');
+                } else {
+                    showMessage(`The ${FLOWERS[existingFlower.type].name} is still growing...`, 'info');
+                }
+            } else if (selectedSeed) {
+                // Planting action
+                const def = FLOWERS[selectedSeed];
+                if (money >= def.cost) {
+                    updateMoney(-def.cost);
+                    
+                    const newFlower = {
+                        type: selectedSeed,
+                        gx: gx,
+                        gy: gy,
+                        x: gridToPixel(gx, canvas.width, GRID_SPACING_X),
+                        y: gridToPixel(gy, canvas.height, GRID_SPACING_Y),
+                        plantedAt: Date.now(),
+                        growth: 0.0
+                    };
+                    flowers.push(newFlower);
+                    showMessage(`Planted a ${def.name}! -$${def.cost}`, 'info');
+
+                } else {
+                    showMessage(`Not enough money to plant a ${def.name}! Requires $${def.cost}.`, 'error');
+                }
+            } else {
+                showMessage("Select a seed below before planting!", 'info');
+            }
+        }
+
+        /**
+         * Sets the currently selected seed for planting.
+         */
+        function selectSeed(seedType) {
+            selectedSeed = seedType;
+            // Update button styles to reflect selection
+            document.querySelectorAll('.plant-button').forEach(btn => {
+                const isSelected = btn.getAttribute('data-seed') === seedType;
+                // Use teal colors for selection feedback
+                btn.classList.toggle('bg-teal-600', isSelected);
+                btn.classList.toggle('bg-teal-400', !isSelected);
+                btn.classList.toggle('text-white', isSelected);
+                btn.classList.toggle('text-gray-800', !isSelected);
+            });
+            showMessage(`${FLOWERS[seedType].name} selected. Ready to plant!`, 'info');
+        }
+
+        /**
+         * Renders/updates the seed selection buttons.
+         */
+        function updateSeedButtons() {
+            seedButtonsContainer.innerHTML = ''; // Clear existing buttons
+
+            Object.entries(FLOWERS).forEach(([key, def]) => {
+                const btn = document.createElement('button');
+                btn.setAttribute('data-seed', key);
+                btn.className = 'plant-button py-2 px-4 rounded-lg font-bold shadow-md disabled:shadow-none transition-colors duration-150 text-gray-800';
+                btn.textContent = `${def.name} ($${def.cost})`;
+                btn.disabled = money < def.cost;
+
+                // Initial non-selected style
+                btn.classList.add('bg-teal-400');
+
+                btn.addEventListener('click', () => {
+                    selectSeed(key);
+                });
+                seedButtonsContainer.appendChild(btn);
+            });
+
+            // Reapply selection style if a seed is currently selected, or select the cheapest
+            if (selectedSeed) {
+                selectSeed(selectedSeed);
+            } else {
+                const cheapestSeed = Object.entries(FLOWERS).sort(([, a], [, b]) => a.cost - b.cost)[0];
+                if (cheapestSeed) {
+                    selectSeed(cheapestSeed[0]);
+                }
+            }
+        }
+
+        // Initialize Game
+        function initGame() {
+            // Keep the listeners separate for mouse (click) and touch (touchend)
+            canvas.addEventListener('click', handleCanvasClick);
+            canvas.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                // Pass the touch event to the handler
+                handleCanvasClick(e);
+            }, { passive: false });
+            
+            sellBouquetButton.addEventListener('click', sellBouquet);
+
+            updateScore(0); 
+            updateMoney(50); 
+            drawBouquetCanvas(); 
+            updateSeedButtons(); 
+            
+            // Start the main game loop
+            animationFrameId = requestAnimationFrame(gameLoop);
+            
+            showMessage(`Welcome! Goal: Reach $${WIN_GOAL} to win!`, 'info');
+        }
+
+        // Start the game when the window loads
+        window.onload = initGame;
+
+    </script>
+</body>
+</html>
